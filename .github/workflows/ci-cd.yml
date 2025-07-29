@@ -54,3 +54,4 @@ jobs:
             Copy-Item -Path $sourcePath\* -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
             Start-WebSite -Name "SimpleMvcApp"
           } -ArgumentList "$PWD\app" -Credential $cred
+           
