@@ -33,7 +33,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: windows-latest
+    runs-on: [self-hosted, windows]
     steps:
       - name: Download Published Files
         uses: actions/download-artifact@v4
@@ -43,10 +43,10 @@ jobs:
 
       - name: Deploy to Remote IIS via WinRM
         run: |
-          $securePassword = ConvertTo-SecureString '${{ 'Esoft@1234' }}' -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential ('${{ 'attendance\esoft' }}', $securePassword)
+          $securePassword = ConvertTo-SecureString 'Esoft@1234' -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential ( 'attendance\esoft', $securePassword)
 
-          Invoke-Command -ComputerName ${{ '192.168.0.20' }} -ScriptBlock {
+          Invoke-Command -ComputerName '192.168.0.20' -ScriptBlock {
             param($sourcePath)
             Import-Module WebAdministration
             Stop-WebSite -Name "SimpleMvcApp"
