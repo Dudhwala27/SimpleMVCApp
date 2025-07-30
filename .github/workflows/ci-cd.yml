@@ -55,58 +55,8 @@ jobs:
 
           $session = New-PSSession -ComputerName $env:REMOTE_SERVER_IP -Credential $cred
 
-          # Define log path on remote machine
-          $remoteLogFile = "C:\Deploy\SimpleMvcApp\deploy.log"
-
-          # Ensure remote folder exists
           Invoke-Command -Session $session -ScriptBlock {
-            if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
-              New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory -Force
-            }
+          $msg = "$(Get-Date) ✅ Remote script reached"
+          Add-Content -Path "C:\Deploy\SimpleMvcApp\test.txt" -Value $msg
           }
-
-          # Copy published files to remote
-          Copy-Item -Path "$localPublishPath\*" -Destination "C:\Deploy\SimpleMvcApp" -ToSession $session -Recurse -Force
-
-          # Run IIS deployment and log everything
-          Invoke-Command -Session $session -ScriptBlock {
-          param($deployPath, $logPath)
-
-            function Log {
-              param([string]$message)
-              $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-              $logLine = "$timestamp $message"
-              # Ensure parent folder exists
-              $folder = Split-Path $logPath -Parent
-              if (-not (Test-Path $folder)) {
-                New-Item -Path $folder -ItemType Directory -Force
-              }
-              $logLine | Out-File -FilePath $logPath -Append -Encoding utf8
-            }
-
-            Import-Module WebAdministration
-            Log "🔁 Deployment started."
-
-            try {
-              Log "📌 Stopping IIS site 'SimpleMvcApp'"
-              Stop-WebSite -Name "SimpleMvcApp"
-
-              Log "🧹 Removing old site content"
-              Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
-
-              Log "📤 Copying new files to IIS directory"
-              Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
-
-              Log "🚀 Starting IIS site 'SimpleMvcApp'"
-              Start-WebSite -Name "SimpleMvcApp"
-
-              Log "✅ Deployment completed successfully."
-            }
-            catch {
-              Log "❌ Deployment failed: $($_.Exception.Message)"
-              throw
-            }
-          } -ArgumentList "C:\Deploy\SimpleMvcApp", "C:\Deploy\SimpleMvcApp\deploy.log"
-
-          Remove-PSSession $session
 
