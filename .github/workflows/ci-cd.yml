@@ -34,45 +34,73 @@ jobs:
   deploy:
     needs: build
     runs-on: [self-hosted, windows]
+    env:
+      REMOTE_USERNAME: 'attendance\esoft'
+      REMOTE_PASSWORD: 'Esoft@1234'
+      REMOTE_SERVER_IP: '192.168.0.20'
+
     steps:
-      - name: Download Published Files
+      - name: Download Published Artifact
         uses: actions/download-artifact@v4
         with:
           name: published-app
           path: ./app
 
       - name: Deploy to Remote IIS via WinRM
+        shell: pwsh
         run: |
-          # Step 1: Define the publish folder (LOCAL)
-          $localPublishPath = "D:\a\SimpleMVCApp\SimpleMVCApp\publish\"
+          $localPublishPath = Join-Path $PWD "app"
+          $securePassword = ConvertTo-SecureString $env:REMOTE_PASSWORD -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential ($env:REMOTE_USERNAME, $securePassword)
 
-          # Step 2: Setup remote credentials
-          $securePassword = ConvertTo-SecureString 'Esoft@1234' -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential ('attendance\esoft', $securePassword)
+          $session = New-PSSession -ComputerName $env:REMOTE_SERVER_IP -Credential $cred
 
-          # Step 3: Create remote session
-          $session = New-PSSession -ComputerName '192.168.0.20' -Credential $cred
+          # Define log path on remote machine
+          $remoteLogFile = "C:\Deploy\SimpleMvcApp\deploy.log"
 
-          # Step 4: Ensure remote target folder exists
+          # Ensure remote folder exists
           Invoke-Command -Session $session -ScriptBlock {
-              if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
-                  New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory
-              }
+            if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
+              New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory -Force
+            }
           }
 
-          # Step 5: Copy files from local to remote (this is local context)
+          # Copy published files to remote
           Copy-Item -Path "$localPublishPath\*" -Destination "C:\Deploy\SimpleMvcApp" -ToSession $session -Recurse -Force
 
-          # Step 6: Run remote deployment, passing a parameter into the script block
+          # Run IIS deployment and log everything
           Invoke-Command -Session $session -ScriptBlock {
-              param($deployPath)
-              Import-Module WebAdministration
+            param($deployPath, $logPath)
 
+            function Log {
+              param([string]$message)
+              $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+              "$timestamp $message" | Out-File -FilePath $logPath -Append -Encoding utf8
+            }
+
+            Import-Module WebAdministration
+            Log "🔁 Deployment started."
+
+            try {
+              Log "📌 Stopping IIS site 'SimpleMvcApp'"
               Stop-WebSite -Name "SimpleMvcApp"
-              Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
-              Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
-              Start-WebSite -Name "SimpleMvcApp"
-          } -ArgumentList "C:\Deploy\SimpleMvcApp"
 
-          # Step 7: Clean up session
+              Log "🧹 Removing old site content"
+              Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
+
+              Log "📤 Copying new files to IIS directory"
+              Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
+
+              Log "🚀 Starting IIS site 'SimpleMvcApp'"
+              Start-WebSite -Name "SimpleMvcApp"
+
+              Log "✅ Deployment completed successfully."
+            }
+            catch {
+              Log "❌ Deployment failed: $($_.Exception.Message)"
+              throw
+            }
+          } -ArgumentList "C:\Deploy\SimpleMvcApp", $remoteLogFile
+
           Remove-PSSession $session
+
