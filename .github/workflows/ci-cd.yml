@@ -43,14 +43,36 @@ jobs:
 
       - name: Deploy to Remote IIS via WinRM
         run: |
+          # Step 1: Define the publish folder (LOCAL)
+          $localPublishPath = "D:\CICDTestApplication\Publish\SimpleMvcApp"
+
+          # Step 2: Setup remote credentials
           $securePassword = ConvertTo-SecureString 'Esoft@1234' -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential ('attendance\esoft', $securePassword)
 
-          Invoke-Command -ComputerName '192.168.0.20' -ScriptBlock {
-            param($sourcePath)
-            Import-Module WebAdministration
-            Stop-WebSite -Name "SimpleMvcApp"
-            Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
-            Copy-Item -Path $sourcePath\* -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
-            Start-WebSite -Name "SimpleMvcApp"
-          } -ArgumentList "$PWD\app" -Credential $cred     
+          # Step 3: Create remote session
+          $session = New-PSSession -ComputerName '192.168.0.20' -Credential $cred
+
+          # Step 4: Ensure remote target folder exists
+          Invoke-Command -Session $session -ScriptBlock {
+              if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
+                  New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory
+              }
+          }
+
+          # Step 5: Copy files from local to remote (this is local context)
+          Copy-Item -Path "$localPublishPath\*" -Destination "C:\Deploy\SimpleMvcApp" -ToSession $session -Recurse -Force
+
+          # Step 6: Run remote deployment, passing a parameter into the script block
+          Invoke-Command -Session $session -ScriptBlock {
+              param($deployPath)
+              Import-Module WebAdministration
+
+              Stop-WebSite -Name "SimpleMvcApp"
+              Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
+              Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
+              Start-WebSite -Name "SimpleMvcApp"
+          } -ArgumentList "C:\Deploy\SimpleMvcApp"
+
+          # Step 7: Clean up session
+          Remove-PSSession $session
