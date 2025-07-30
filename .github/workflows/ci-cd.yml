@@ -44,13 +44,13 @@ jobs:
       - name: Deploy to Remote IIS via WinRM
         run: |
           $securePassword = ConvertTo-SecureString 'Esoft@1234' -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential ( 'attendance\esoft', $securePassword)
+          $cred = New-Object System.Management.Automation.PSCredential ('attendance\esoft', $securePassword)
 
           Invoke-Command -ComputerName '192.168.0.20' -ScriptBlock {
             param($sourcePath)
             Import-Module WebAdministration
-            Stop-WebSite -Name "SimpleMVCApp"
-            Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMVCApp\*" -ErrorAction SilentlyContinue
-            Copy-Item -Path $sourcePath\* -Destination "C:\inetpub\wwwroot\Production\SimpleMVCApp\" -Recurse -Force
-            Start-WebSite -Name "SimpleMVCApp"
+            Stop-WebSite -Name "SimpleMvcApp"
+            Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
+            Copy-Item -Path $sourcePath\* -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
+            Start-WebSite -Name "SimpleMvcApp"
           } -ArgumentList "$PWD\app" -Credential $cred     
