@@ -95,3 +95,4 @@ D:\CICDTestApplication\SimpleMvcApp\obj\Debug\net9.0\refint\SimpleMvcApp.dll
 D:\CICDTestApplication\SimpleMvcApp\obj\Debug\net9.0\SimpleMvcApp.pdb
 D:\CICDTestApplication\SimpleMvcApp\obj\Debug\net9.0\SimpleMvcApp.genruntimeconfig.cache
 D:\CICDTestApplication\SimpleMvcApp\obj\Debug\net9.0\ref\SimpleMvcApp.dll
+D:\CICDTestApplication\SimpleMvcApp\obj\Debug\net9.0\SimpleMvcApp.sourcelink.json

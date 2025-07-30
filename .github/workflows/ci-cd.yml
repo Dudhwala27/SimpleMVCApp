@@ -104,3 +104,8 @@ jobs:
             Write-Host "STACK TRACE: $($_.ScriptStackTrace)"
             exit 1
           }
+          finally {
+            if ($session) {
+              Remove-PSSession $session
+            }
+          }

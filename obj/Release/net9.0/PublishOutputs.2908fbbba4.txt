@@ -1,0 +1,7 @@
+D:\CICDTestApplication\Publish\SimpleMvcApp\SimpleMvcApp.exe
+D:\CICDTestApplication\Publish\SimpleMvcApp\appsettings.Development.json
+D:\CICDTestApplication\Publish\SimpleMvcApp\appsettings.json
+D:\CICDTestApplication\Publish\SimpleMvcApp\SimpleMvcApp.dll
+D:\CICDTestApplication\Publish\SimpleMvcApp\SimpleMvcApp.deps.json
+D:\CICDTestApplication\Publish\SimpleMvcApp\SimpleMvcApp.runtimeconfig.json
+D:\CICDTestApplication\Publish\SimpleMvcApp\SimpleMvcApp.pdb
