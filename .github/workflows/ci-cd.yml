@@ -56,7 +56,19 @@ jobs:
           $session = New-PSSession -ComputerName $env:REMOTE_SERVER_IP -Credential $cred
 
           Invoke-Command -Session $session -ScriptBlock {
-          $msg = "$(Get-Date) ✅ Remote script reached"
-          Add-Content -Path "C:\Deploy\SimpleMvcApp\test.txt" -Value $msg
+          try {
+            # Ensure folder exists
+            if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
+              New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory -Force | Out-Null
+            }
+
+            # Write log line
+            $msg = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ✅ Remote script reached from GitHub Actions"
+            Add-Content -Path "C:\Deploy\SimpleMvcApp\test.txt" -Value $msg
+
+            Write-Output "✅ test.txt written successfully"
+          } catch {
+            Write-Output "❌ ERROR: $($_.Exception.Message)"
+          }
           }
 
