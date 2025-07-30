@@ -35,9 +35,9 @@ jobs:
     needs: build
     runs-on: [self-hosted, windows]
     env:
-      REMOTE_USERNAME: 'attendance\\esoft'
-      REMOTE_PASSWORD: 'Esoft@1234'
-      REMOTE_SERVER_IP: '192.168.0.20'
+      REMOTE_USERNAME: ${{ secrets.REMOTE_USERNAME }}
+      REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
+      REMOTE_SERVER_IP: ${{ secrets.REMOTE_SERVER_IP }}
 
     steps:
       - name: Download Published Artifact
@@ -55,38 +55,52 @@ jobs:
       - name: Deploy to Remote IIS via WinRM
         shell: pwsh
         run: |
+          Write-Host "Remote Username: $env:REMOTE_USERNAME"
+          Write-Host "Remote Server IP: $env:REMOTE_SERVER_IP"
           $localPublishPath = Join-Path $PWD "app"
-          $securePassword = ConvertTo-SecureString $env:REMOTE_PASSWORD -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential ($env:REMOTE_USERNAME, $securePassword)
+          Write-Host "Local publish path: $localPublishPath"
+          $ErrorActionPreference = "Stop"
+          try {
+            $securePassword = ConvertTo-SecureString $env:REMOTE_PASSWORD -AsPlainText -Force
+            $cred = New-Object System.Management.Automation.PSCredential ($env:REMOTE_USERNAME, $securePassword)
+            Write-Host "Attempting to create remote session..."
+            $session = New-PSSession -ComputerName $env:REMOTE_SERVER_IP -Credential $cred -ErrorAction Stop
+            Write-Host "Remote session created successfully."
 
-          $session = New-PSSession -ComputerName $env:REMOTE_SERVER_IP -Credential $cred
-
-          # Ensure remote folder exists
-          Invoke-Command -Session $session -ScriptBlock {
-            if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
-              New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory -Force
+            # Ensure remote folder exists
+            Invoke-Command -Session $session -ScriptBlock {
+              if (-not (Test-Path "C:\Deploy\SimpleMvcApp")) {
+                New-Item -Path "C:\Deploy\SimpleMvcApp" -ItemType Directory -Force
+              }
             }
+
+            # Copy published files to remote
+            Write-Host "Copying files to remote server..."
+            Copy-Item -Path "$localPublishPath\*" -Destination "C:\Deploy\SimpleMvcApp" -ToSession $session -Recurse -Force
+
+            # Run IIS deployment and log everything
+            Invoke-Command -Session $session -ScriptBlock {
+              param($deployPath)
+              Import-Module WebAdministration
+
+              Write-Host "Stopping IIS site 'SimpleMvcApp'"
+              Stop-WebSite -Name "SimpleMvcApp"
+
+              Write-Host "Removing old site content"
+              Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
+
+              Write-Host "Copying new files to IIS directory"
+              Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
+
+              Write-Host "Starting IIS site 'SimpleMvcApp'"
+              Start-WebSite -Name "SimpleMvcApp"
+            } -ArgumentList "C:\Deploy\SimpleMvcApp"
+
+            Remove-PSSession $session
+            Write-Host "Deployment completed successfully."
           }
-
-          # Copy published files to remote
-          Copy-Item -Path "$localPublishPath\*" -Destination "C:\Deploy\SimpleMvcApp" -ToSession $session -Recurse -Force
-
-          # Run IIS deployment and log everything
-          Invoke-Command -Session $session -ScriptBlock {
-            param($deployPath)
-            Import-Module WebAdministration
-
-            Write-Host "Stopping IIS site 'SimpleMvcApp'"
-            Stop-WebSite -Name "SimpleMvcApp"
-
-            Write-Host "Removing old site content"
-            Remove-Item -Recurse -Force "C:\inetpub\wwwroot\Production\SimpleMvcApp\*" -ErrorAction SilentlyContinue
-
-            Write-Host "Copying new files to IIS directory"
-            Copy-Item -Path "$deployPath\*" -Destination "C:\inetpub\wwwroot\Production\SimpleMvcApp\" -Recurse -Force
-
-            Write-Host "Starting IIS site 'SimpleMvcApp'"
-            Start-WebSite -Name "SimpleMvcApp"
-          } -ArgumentList "C:\Deploy\SimpleMvcApp"
-
-          Remove-PSSession $session
+          catch {
+            Write-Host "ERROR: $($_.Exception.Message)"
+            Write-Host "STACK TRACE: $($_.ScriptStackTrace)"
+            exit 1
+          }
