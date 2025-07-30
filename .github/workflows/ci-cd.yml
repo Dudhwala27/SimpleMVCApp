@@ -70,12 +70,18 @@ jobs:
 
           # Run IIS deployment and log everything
           Invoke-Command -Session $session -ScriptBlock {
-            param($deployPath, $logPath)
+          param($deployPath, $logPath)
 
             function Log {
               param([string]$message)
               $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-              "$timestamp $message" | Out-File -FilePath $logPath -Append -Encoding utf8
+              $logLine = "$timestamp $message"
+              # Ensure parent folder exists
+              $folder = Split-Path $logPath -Parent
+              if (-not (Test-Path $folder)) {
+                New-Item -Path $folder -ItemType Directory -Force
+              }
+              $logLine | Out-File -FilePath $logPath -Append -Encoding utf8
             }
 
             Import-Module WebAdministration
@@ -100,7 +106,7 @@ jobs:
               Log "❌ Deployment failed: $($_.Exception.Message)"
               throw
             }
-          } -ArgumentList "C:\Deploy\SimpleMvcApp", $remoteLogFile
+          } -ArgumentList "C:\Deploy\SimpleMvcApp", "C:\Deploy\SimpleMvcApp\deploy.log"
 
           Remove-PSSession $session
 
