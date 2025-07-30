@@ -44,7 +44,7 @@ jobs:
       - name: Deploy to Remote IIS via WinRM
         run: |
           # Step 1: Define the publish folder (LOCAL)
-          $localPublishPath = "D:\CICDTestApplication\Publish\SimpleMvcApp"
+          $localPublishPath = "D:\a\SimpleMVCApp\SimpleMVCApp\publish\"
 
           # Step 2: Setup remote credentials
           $securePassword = ConvertTo-SecureString 'Esoft@1234' -AsPlainText -Force
